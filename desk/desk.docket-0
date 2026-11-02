@@ -1,0 +1,10 @@
+:~  title+'Iron'
+    info+'A dumbbell workout tracker: a 5-day split, move guides, progress charts, streaks and bodyweight.'
+    color+0x1c.1a1f
+    image+'/apps/iron/icon'
+    version+[0 1 0]
+    website+'https://github.com/itsTylerIRL'
+    license+'MIT'
+    base+'iron'
+    site+/apps/iron
+==

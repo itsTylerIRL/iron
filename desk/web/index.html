@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d0f">
+  <title>Iron</title>
+  <link rel="icon" type="image/png" href="/apps/iron/icon">
+  <link rel="stylesheet" href="/apps/iron/style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/apps/iron"><img src="/apps/iron/icon" alt="" width="28" height="28">IRON</a>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="today" class="on">Today</button>
+      <button role="tab" data-tab="moves">Moves</button>
+      <button role="tab" data-tab="progress">Progress</button>
+      <button role="tab" data-tab="stats">Stats</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="today" data-pane="today"></section>
+    <section id="moves" data-pane="moves" hidden></section>
+    <section id="progress" data-pane="progress" hidden></section>
+    <section id="stats" data-pane="stats" hidden></section>
+  </main>
+
+  <div id="rest" class="rest" hidden>
+    <span class="rlabel">rest</span><b id="resttime">1:30</b>
+    <button id="restplus" title="add 30 seconds">+30</button>
+    <button id="restskip">skip</button>
+  </div>
+  <div id="sheet" class="sheet" hidden></div>
+  <script src="/apps/iron/data.js"></script>
+  <script src="/apps/iron/app.js"></script>
+</body>
+</html>
