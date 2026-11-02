@@ -246,3 +246,159 @@ window.IRON_MOVES = {
     mistakes: ['Leaning toward or away from the dumbbell.', 'Shoulder creeping up toward your ear.'],
   },
 };
+
+// ---------------------------------------------------------------- alternatives
+//
+// Each program move can be swapped for one of its alts (a joint complains, or
+// you want variety). harder: what to graduate to once 50 lb is too light.
+// bw: true for bodyweight moves (no dumbbell weight to log).
+
+Object.assign(window.IRON_MOVES, {
+  'push-up': {
+    name: 'Push-up', muscles: 'chest, shoulders, triceps, core', sets: 3, reps: [8, 20], bw: true, start: 0,
+    how: ['Hands on the floor a little wider than your shoulders (or on the dumbbell handles for a deeper stretch), body in a straight line from head to heels.',
+      'Lower your chest to just above the floor, elbows about 45° from your body.',
+      'Press back up to straight arms.'],
+    cues: ['Squeeze your glutes and brace like a plank.', 'Elbows angled back, not flared out.'],
+    mistakes: ['Hips sagging or piking up.', 'Half reps that stop well short of the floor.'],
+  },
+  'squeeze-press': {
+    name: 'Squeeze press', muscles: 'inner chest, triceps', sets: 3, reps: [10, 12], start: 15,
+    how: ['Lie on your back and press both dumbbells up over your chest, pressed together along their length, palms facing each other.',
+      'Squeeze them together hard and lower them as one to your chest.',
+      'Press back up, never letting them separate.'],
+    cues: ['Crush the dumbbells into each other the whole set.', 'Slow on the way down.'],
+    mistakes: ['Letting the dumbbells drift apart.', 'Going too heavy to keep the squeeze.'],
+  },
+  'arnold-press': {
+    name: 'Arnold press', muscles: 'all three delts, triceps', sets: 3, reps: [8, 12], start: 12.5,
+    how: ['Start with the dumbbells at shoulder height, palms facing you, like the top of a curl.',
+      'As you press up, rotate your palms to face forward, finishing overhead.',
+      'Reverse the rotation on the way down.'],
+    cues: ['Make the rotation smooth and continuous.', 'Brace your core and glutes.'],
+    mistakes: ['Leaning back.', 'Rushing the rotation.'],
+  },
+  'front-raise': {
+    name: 'Front raise', muscles: 'front delts', sets: 3, reps: [10, 15], start: 7.5,
+    how: ['Stand tall with dumbbells in front of your thighs, palms facing you.',
+      'Raise them straight in front of you to shoulder height, arms nearly straight.',
+      'Lower slowly.'],
+    cues: ['Stop at shoulder height.', 'Keep your torso still.'],
+    mistakes: ['Swinging the weights up.', 'Shrugging as you lift.'],
+  },
+  'gorilla-row': {
+    name: 'Gorilla row', muscles: 'lats, mid back, core', sets: 3, reps: [8, 10], side: true, start: 25,
+    how: ['Stand wide with dumbbells on the floor between your feet, hinge down and grab both handles, back flat.',
+      'Row one dumbbell to your hip while pushing the other into the floor.',
+      'Lower it and row the other side. Alternate.'],
+    cues: ['Keep your hips still and back flat.', 'Drive the elbow back to your pocket.'],
+    mistakes: ['Twisting to lift the weight.', 'Standing up between reps.'],
+  },
+  'y-raise': {
+    name: 'Bent-over Y raise', muscles: 'lower traps, rear delts', sets: 3, reps: [10, 15], start: 5,
+    how: ['Hinge forward with a flat back, light dumbbells hanging under your shoulders, thumbs pointing up.',
+      'Raise your arms forward and out in a Y shape until they are in line with your body.',
+      'Lower slowly.'],
+    cues: ['Very light: 5 lb is plenty to start.', 'Pull your shoulder blades down as you lift.'],
+    mistakes: ['Shrugging up toward your ears.', 'Lifting the chest to cheat.'],
+  },
+  'farmer-hold': {
+    name: 'Farmer hold', muscles: 'grip, traps, core', sets: 3, reps: [30, 60], unit: 'sec', start: 50,
+    how: ['Pick up a heavy dumbbell in each hand and stand tall (or walk if you have room).',
+      'Hold for the time with your shoulders back and down.',
+      'Set them down under control.'],
+    cues: ['Crush the handles.', 'Stand like you are being measured for height.'],
+    mistakes: ['Letting the shoulders round forward.', 'Holding your breath.'],
+  },
+  'bulgarian-split-squat': {
+    name: 'Bulgarian split squat', muscles: 'quads, glutes', sets: 3, reps: [8, 12], side: true, start: 15,
+    how: ['Stand a stride in front of a chair or couch and rest the top of your back foot on it. Hold a dumbbell in each hand.',
+      'Lower straight down until your front thigh is about parallel to the floor.',
+      'Drive through your front heel to stand. Finish one leg, then switch.'],
+    cues: ['Most of your weight stays on the front leg.', 'A slight forward lean is fine; keep your back flat.'],
+    mistakes: ['Front foot too close to the bench.', 'Pushing off the back foot.'],
+  },
+  'sumo-squat': {
+    name: 'Sumo squat', muscles: 'glutes, inner thighs, quads', sets: 3, reps: [10, 15], start: 30,
+    how: ['Take a wide stance, toes turned out. Hold one dumbbell vertically by the top plate between your legs.',
+      'Sit straight down, knees tracking over your toes, until the dumbbell nearly touches the floor.',
+      'Stand back up, squeezing your glutes.'],
+    cues: ['Push your knees out wide.', 'Chest up the whole time.'],
+    mistakes: ['Knees caving in.', 'Leaning forward.'],
+  },
+  'single-leg-rdl': {
+    name: 'Single-leg RDL', muscles: 'hamstrings, glutes, balance', sets: 3, reps: [8, 10], side: true, start: 20,
+    how: ['Stand on one leg holding a dumbbell in the opposite hand, standing knee slightly bent.',
+      'Hinge forward, letting your free leg rise behind you, until your torso is nearly parallel to the floor.',
+      'Squeeze your glute to stand back up. Finish one side, then switch.'],
+    cues: ['Keep your hips square to the floor.', 'Reach the dumbbell toward the floor, not your foot.'],
+    mistakes: ['Hips opening up toward the ceiling.', 'Rounding your back to reach lower.'],
+  },
+  'step-up': {
+    name: 'Step-up', muscles: 'quads, glutes', sets: 3, reps: [8, 12], side: true, start: 15,
+    how: ['Stand facing a sturdy chair or step with a dumbbell in each hand.',
+      'Place one foot fully on it and drive through that heel to step up, bringing the other foot up.',
+      'Step down with control. Finish one leg, then switch.'],
+    cues: ['Let the top leg do the work: no pushing off the floor.', 'Use something knee height or lower.'],
+    mistakes: ['Bouncing off the bottom foot.', 'Using a wobbly surface.'],
+  },
+  'single-leg-glute-bridge': {
+    name: 'Single-leg glute bridge', muscles: 'glutes, hamstrings', sets: 3, reps: [10, 15], side: true, start: 15,
+    how: ['Lie on your back, one foot flat and one leg straight in the air, dumbbell resting on your hips.',
+      'Drive through the planted heel to lift your hips.',
+      'Squeeze at the top, lower, and finish the side before switching.'],
+    cues: ['Keep your hips level.', 'Push through the heel.'],
+    mistakes: ['One hip dropping.', 'Arching the lower back.'],
+  },
+  'single-leg-calf-raise': {
+    name: 'Single-leg calf raise', muscles: 'calves', sets: 3, reps: [10, 15], side: true, start: 25,
+    how: ['Stand on one foot on a step edge, dumbbell in the same-side hand, other hand on a wall.',
+      'Rise as high as you can onto the ball of your foot.',
+      'Lower slowly until your heel drops below the step. Finish one side, then switch.'],
+    cues: ['Full range: high at the top, deep at the bottom.', 'Pause at both ends.'],
+    mistakes: ['Bouncing.', 'Bending the knee to help.'],
+  },
+  'cross-body-curl': {
+    name: 'Cross-body hammer curl', muscles: 'brachialis, biceps, forearms', sets: 3, reps: [10, 12], side: true, start: 15,
+    how: ['Stand with dumbbells at your sides, palms facing in.',
+      'Curl one dumbbell up and across your body toward the opposite shoulder.',
+      'Lower and alternate sides.'],
+    cues: ['Keep the palm facing in the whole time.', 'Upper arm stays mostly still.'],
+    mistakes: ['Swinging the torso.', 'Rushing the way down.'],
+  },
+  woodchop: {
+    name: 'Dumbbell woodchop', muscles: 'obliques, core, shoulders', sets: 3, reps: [10, 12], side: true, start: 10,
+    how: ['Hold one dumbbell with both hands by one hip, feet shoulder-width, knees soft.',
+      'Rotate and lift it diagonally across your body to above the opposite shoulder, pivoting your back foot.',
+      'Return under control. Finish the side, then switch.'],
+    cues: ['Turn from your hips and torso, not your arms.', 'Control it both ways.'],
+    mistakes: ['Yanking with the lower back.', 'Going too heavy and losing the rotation.'],
+  },
+  'plank-pull-through': {
+    name: 'Plank pull-through', muscles: 'abs, obliques, shoulders', sets: 3, reps: [8, 12], side: true, start: 15,
+    how: ['Hold a high plank with a dumbbell on the floor just outside one hand.',
+      'Reach under your body with the opposite hand and drag the dumbbell across to the other side.',
+      'Switch hands and drag it back. Each drag is one rep.'],
+    cues: ['Feet wide and glutes squeezed so your hips stay level.', 'Move slowly.'],
+    mistakes: ['Hips rocking side to side.', 'Piking the hips up.'],
+  },
+});
+
+const ALTS = {
+  'floor-press': ['push-up', 'squeeze-press'], 'shoulder-press': ['arnold-press'], 'floor-fly': ['squeeze-press', 'push-up'],
+  'lateral-raise': ['front-raise'], 'overhead-extension': ['skull-crusher', 'kickback'],
+  'one-arm-row': ['gorilla-row', 'bent-over-row'], 'bent-over-row': ['gorilla-row', 'one-arm-row'], pullover: ['one-arm-row'],
+  'rear-delt-fly': ['y-raise'], shrug: ['farmer-hold'],
+  'goblet-squat': ['sumo-squat', 'bulgarian-split-squat'], 'romanian-deadlift': ['single-leg-rdl'], 'reverse-lunge': ['step-up', 'split-squat'],
+  'split-squat': ['bulgarian-split-squat', 'step-up'], 'glute-bridge': ['single-leg-glute-bridge'], 'calf-raise': ['single-leg-calf-raise'],
+  curl: ['hammer-curl', 'zottman-curl'], 'hammer-curl': ['cross-body-curl'], 'skull-crusher': ['overhead-extension', 'kickback'],
+  kickback: ['skull-crusher'], 'concentration-curl': ['curl'], 'zottman-curl': ['hammer-curl'],
+  'russian-twist': ['woodchop'], 'dead-bug': ['weighted-crunch'], 'renegade-row': ['plank-pull-through'],
+  'weighted-crunch': ['dead-bug'], 'side-bend': ['suitcase-hold'], 'suitcase-hold': ['farmer-hold'],
+};
+const HARDER = {
+  'goblet-squat': 'bulgarian-split-squat', 'split-squat': 'bulgarian-split-squat', 'romanian-deadlift': 'single-leg-rdl',
+  'glute-bridge': 'single-leg-glute-bridge', 'calf-raise': 'single-leg-calf-raise', 'sumo-squat': 'bulgarian-split-squat',
+};
+for (const [k, v] of Object.entries(ALTS)) window.IRON_MOVES[k].alts = v;
+for (const [k, v] of Object.entries(HARDER)) window.IRON_MOVES[k].harder = v;

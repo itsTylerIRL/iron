@@ -17,6 +17,9 @@ async function api(path, opts = {}) {
 const fromApi = (w) => ({ ...w, entries: w.entries.map((e) => ({ ex: e.ex, sets: e.sets.map((s) => ({ lbs: s.lbs / 10, reps: s.reps })) })) });
 let workouts = [], weights = [], settings = { rest: 90 };
 
+const todayIso = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+// a date picked in the past is logged at midday; today is logged as now
+const atFor = (iso) => (!iso || iso === todayIso() ? Date.now() : new Date(iso + 'T12:00:00').getTime());
 const fmtLb = (x) => (Number.isInteger(x) ? x : x.toFixed(1)) + '';
 const unit = (m) => (m.unit === 'sec' ? 's' : '');
 const e1rm = (lbs, reps) => lbs * (1 + reps / 30);              // Epley estimate
@@ -32,15 +35,37 @@ function lastFor(ex) {
   return null;
 }
 // double progression: hit the top of the range on every set → go up a weight
+const MAXW = W[W.length - 1];
 function plan(ex) {
   const m = MOVES[ex], last = lastFor(ex);
+  if (m.bw) {
+    if (!last) return { lbs: 0, reps: m.reps[0], why: 'body weight' };
+    const low = Math.min(...last.sets.map((s) => s.reps));
+    if (low >= m.reps[1]) return { lbs: 0, reps: m.reps[1], why: 'top of the range: slow the lowering to 3 s', up: true };
+    return { lbs: 0, reps: Math.min(m.reps[1], low + 1), why: 'one more rep than your weakest set' };
+  }
   if (!last) return { lbs: snap(m.start), reps: m.reps[0], why: 'starting weight' };
   const top = Math.max(...last.sets.map((s) => s.lbs));
+  // past the heaviest dumbbell: add reps up to 20, then slow it down or move to a harder variation
+  if (top >= MAXW) {
+    const low = Math.min(...last.sets.filter((s) => s.lbs >= MAXW).map((s) => s.reps));
+    if (low < 20) return { lbs: MAXW, reps: Math.min(20, Math.max(m.reps[0], low + 1)), why: `maxed at ${MAXW} lb: add reps, aim for 20`, max: true };
+    if (m.harder) return { lbs: MAXW, reps: 20, why: `${MAXW} lb × 20 is easy now: swap to ${MOVES[m.harder].name}`, max: true, harder: m.harder };
+    return { lbs: MAXW, reps: 20, why: `${MAXW} lb × 20: slow the lowering to 3–4 s and pause at the hardest point`, max: true };
+  }
   const atTop = last.sets.filter((s) => s.lbs === top);
   if (atTop.length >= m.sets && atTop.every((s) => s.reps >= m.reps[1]) && nextWeight(top) !== top)
     return { lbs: nextWeight(top), reps: m.reps[0], why: `up from ${fmtLb(top)} lb`, up: true };
   const best = Math.max(...atTop.map((s) => s.reps));
   return { lbs: top, reps: Math.min(m.reps[1], best + 1), why: 'same weight, one more rep' };
+}
+// the moves for a day, after any swaps saved in settings
+function dayMoves(day) {
+  const sw = (settings.swaps || {})[day] || {};
+  return DAY[day].moves.map((ex, i) => (sw[i] && MOVES[sw[i]] ? sw[i] : ex));
+}
+async function saveSettings() {
+  try { await api('/settings', { method: 'POST', body: JSON.stringify(settings) }); } catch {}
 }
 function nextDay() {
   if (!workouts.length) return DAYS[0].id;
@@ -62,9 +87,10 @@ document.querySelectorAll('.tabs [data-tab]').forEach((b) => (b.onclick = () => 
 
 let draft = null, banner = '';
 const saveDraft = () => { try { localStorage.setItem('iron-draft', JSON.stringify(draft)); } catch {} };
+const freshSets = (ex) => { const p = plan(ex); return Array.from({ length: MOVES[ex].sets }, () => ({ lbs: p.lbs, reps: p.reps, done: false })); };
 function newDraft(day) {
-  const d = DAY[day];
-  draft = { day, note: '', entries: Object.fromEntries(d.moves.map((ex) => { const p = plan(ex); return [ex, Array.from({ length: MOVES[ex].sets }, () => ({ lbs: p.lbs, reps: p.reps, done: false }))]; })) };
+  const order = dayMoves(day);
+  draft = { day, note: '', order, date: '', entries: Object.fromEntries(order.map((ex) => [ex, freshSets(ex)])) };
   saveDraft();
 }
 
@@ -78,11 +104,12 @@ function renderToday() {
       <div><div class="kicker">day ${DAYS.indexOf(d) + 1} of ${DAYS.length}${draft.day === nextDay() ? ' · up next' : ''}</div><h1>${d.name}</h1><div class="focus">${d.focus}</div></div>
       <div class="daypick">${DAYS.map((x) => `<button data-day="${x.id}" class="${x.id === draft.day ? 'on' : ''}">${x.name}</button>`).join('')}</div>
     </div>
-    <div class="exlist">${d.moves.map((ex) => exCard(ex)).join('')}</div>
+    <div class="exlist">${(draft.order || d.moves).map((ex, slot) => exCard(ex, slot)).join('')}</div>
     <div class="finish">
       <textarea id="note" placeholder="notes (optional): how it felt, anything to remember next time">${esc(draft.note)}</textarea>
       <div class="row"><span class="muted">${doneSets} set${doneSets === 1 ? '' : 's'} done · weights are per dumbbell</span>
-        <button class="primary" id="finish" ${doneSets ? '' : 'disabled'}>Finish workout</button></div>
+        <span class="datewrap"><label class="muted small" for="wdate">done on</label><input type="date" id="wdate" value="${draft.date || todayIso()}" max="${todayIso()}">
+        <button class="primary" id="finish" ${doneSets ? '' : 'disabled'}>Finish workout</button></span></div>
     </div>`;
   el.querySelectorAll('[data-day]').forEach((b) => (b.onclick = () => {
     if (b.dataset.day === draft.day) return;
@@ -90,32 +117,39 @@ function renderToday() {
     banner = ''; newDraft(b.dataset.day); renderToday();
   }));
   $('note').oninput = (e) => { draft.note = e.target.value; saveDraft(); };
+  $('wdate').onchange = (e) => { draft.date = e.target.value === todayIso() ? '' : e.target.value; saveDraft(); };
+  wantAwake(doneSets > 0);
   $('finish').onclick = finish;
   el.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => act(b.dataset)));
 }
 
-function exCard(ex) {
+function exCard(ex, slot) {
   const m = MOVES[ex], sets = draft.entries[ex], last = lastFor(ex), p = plan(ex), u = unit(m);
+  const base = DAY[draft.day].moves[slot], swappable = (MOVES[base].alts || []).length > 0;
+  const lastTxt = last ? last.sets.map((s) => (m.bw ? `${s.reps}` : `${fmtLb(s.lbs)}×${s.reps}`)).join(', ') : '';
   const all = sets.length && sets.every((s) => s.done);
   return `<div class="card ex${all ? ' done' : ''}">
     <div class="exhead"><h3><button data-act="info" data-ex="${ex}">${m.name}</button></h3><span class="muted small">${m.muscles}</span></div>
     <div class="exmeta"><span>target <b>${m.sets} × ${m.reps[0]}–${m.reps[1]}${u}${m.side ? ' per side' : ''}</b></span>
-      <span>last ${last ? `<b>${last.sets.map((s) => `${fmtLb(s.lbs)}×${s.reps}`).join(', ')}</b> · ${fmtDate(last.at)}` : '<b>never</b>'}</span>
-      <span class="${p.up ? 'up' : ''}">try <b>${fmtLb(p.lbs)} lb</b> · ${p.why}</span></div>
+      <span>last ${last ? `<b>${lastTxt}</b> · ${fmtDate(last.at)}` : '<b>never</b>'}</span>
+      <span class="${p.up || p.max ? 'up' : ''}">${m.bw ? `aim <b>${p.reps}</b> · ${p.why}` : `try <b>${fmtLb(p.lbs)} lb</b> · ${p.why}`}</span>
+      ${p.harder ? `<button class="ghost small" data-act="swapto" data-ex="${ex}" data-to="${p.harder}" data-slot="${slot}">swap to ${MOVES[p.harder].name} ›</button>` : ''}</div>
     <div class="sets">${sets.map((s, i) => `
       <div class="setrow">
         <span class="n">${i + 1}</span>
-        <div class="stepper"><button data-act="lbs" data-ex="${ex}" data-i="${i}" data-d="-1" aria-label="lighter">−</button><span class="val">${fmtLb(s.lbs)}<small>lb</small></span><button data-act="lbs" data-ex="${ex}" data-i="${i}" data-d="1" aria-label="heavier">+</button></div>
+        ${m.bw ? '<div class="stepper bw"><span class="val">body<small>weight</small></span></div>' : `<div class="stepper"><button data-act="lbs" data-ex="${ex}" data-i="${i}" data-d="-1" aria-label="lighter">−</button><span class="val">${fmtLb(s.lbs)}<small>lb</small></span><button data-act="lbs" data-ex="${ex}" data-i="${i}" data-d="1" aria-label="heavier">+</button></div>`}
         <div class="stepper"><button data-act="reps" data-ex="${ex}" data-i="${i}" data-d="-1" aria-label="fewer">−</button><span class="val">${s.reps}<small>${m.unit === 'sec' ? 'sec' : 'reps'}</small></span><button data-act="reps" data-ex="${ex}" data-i="${i}" data-d="1" aria-label="more">+</button></div>
         <button class="check${s.done ? ' on' : ''}" data-act="done" data-ex="${ex}" data-i="${i}" aria-label="set done">✓</button>
       </div>`).join('')}</div>
-    <div class="exfoot"><button class="ghost" data-act="add" data-ex="${ex}">+ set</button>${sets.length > 1 ? `<button class="ghost" data-act="drop" data-ex="${ex}">− set</button>` : ''}<button class="ghost" data-act="info" data-ex="${ex}">how to</button></div>
+    <div class="exfoot"><button class="ghost" data-act="add" data-ex="${ex}">+ set</button>${sets.length > 1 ? `<button class="ghost" data-act="drop" data-ex="${ex}">− set</button>` : ''}<button class="ghost" data-act="info" data-ex="${ex}">how to</button>${swappable ? `<button class="ghost" data-act="swap" data-ex="${ex}" data-slot="${slot}">swap</button>` : ''}</div>
   </div>`;
 }
 
-function act({ act: a, ex, i, d }) {
+function act({ act: a, ex, i, d, slot, to }) {
   const sets = draft.entries[ex], m = MOVES[ex];
   if (a === 'info') return openGuide(ex);
+  if (a === 'swap') return openSwap(ex, +slot);
+  if (a === 'swapto') return swapTo(+slot, to);
   if (a === 'lbs') { const k = W.indexOf(snap(sets[i].lbs)); sets[i].lbs = W[Math.max(0, Math.min(W.length - 1, k + +d))]; if (!sets[i].done) for (let j = +i + 1; j < sets.length; j++) if (!sets[j].done) sets[j].lbs = sets[i].lbs; }
   if (a === 'reps') sets[i].reps = Math.max(1, sets[i].reps + +d * (m.unit === 'sec' ? 5 : 1));
   if (a === 'done') { sets[i].done = !sets[i].done; if (sets[i].done) startRest(m.unit === 'sec' ? 45 : settings.rest || 90); }
@@ -129,13 +163,45 @@ async function finish() {
   if (!entries.length) return;
   $('finish').disabled = true; $('finish').textContent = 'saving…';
   try {
-    const w = await api('/workout', { method: 'POST', body: JSON.stringify({ day: draft.day, note: draft.note, entries }) });
+    const w = await api('/workout', { method: 'POST', body: JSON.stringify({ day: draft.day, note: draft.note, entries, at: atFor(draft.date) }) });
     workouts.unshift(fromApi(w)); workouts.sort((a, b) => b.at - a.at);
     const vol = entries.reduce((a, e) => a + e.sets.reduce((b, s) => b + (s.lbs / 10) * s.reps, 0), 0);
     banner = `<b>${DAY[draft.day].name} done.</b> ${entries.reduce((a, e) => a + e.sets.length, 0)} sets, ${Math.round(vol).toLocaleString()} lb moved. Next up: <b>${DAY[nextDay()].name}</b>.`;
-    stopRest(); newDraft(nextDay()); renderToday(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    stopRest(); wantAwake(false); newDraft(nextDay()); renderToday(); window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) { $('finish').disabled = false; $('finish').textContent = 'Finish workout'; alert("Couldn't save: " + e.message); }
 }
+
+// swap a slot of today's day for one of its alternatives; it sticks for next time
+function openSwap(ex, slot) {
+  const base = DAY[draft.day].moves[slot], opts = [base, ...(MOVES[base].alts || [])], s = $('sheet');
+  s.innerHTML = `<div class="card"><div class="exhead"><h2>Swap ${MOVES[ex].name}</h2><button class="ghost" id="closesheet">close</button></div>
+    <p class="muted small">Your choice sticks for this day until you swap back. History is kept per move.</p>
+    <div class="swaps">${opts.map((o) => `<button class="swapopt${o === ex ? ' on' : ''}" data-to="${o}"><b>${MOVES[o].name}${o === base ? ' <span class="muted small">(program default)</span>' : ''}</b><span>${MOVES[o].muscles} · ${MOVES[o].sets} × ${MOVES[o].reps[0]}–${MOVES[o].reps[1]}${MOVES[o].bw ? ' · body weight' : ''}</span></button>`).join('')}</div></div>`;
+  s.hidden = false;
+  $('closesheet').onclick = () => (s.hidden = true);
+  s.querySelectorAll('[data-to]').forEach((b) => (b.onclick = () => { s.hidden = true; swapTo(slot, b.dataset.to); }));
+}
+function swapTo(slot, to) {
+  const day = draft.day, base = DAY[day].moves[slot], cur = draft.order[slot];
+  if (to === cur) return;
+  settings.swaps = settings.swaps || {}; settings.swaps[day] = settings.swaps[day] || {};
+  if (to === base) delete settings.swaps[day][slot]; else settings.swaps[day][slot] = to;
+  saveSettings();
+  draft.order[slot] = to; delete draft.entries[cur]; draft.entries[to] = freshSets(to);
+  saveDraft(); renderToday();
+}
+
+// ---------------------------------------------------------------- keep the screen on mid-workout
+
+let wakeLock = null, wantLock = false;
+async function wantAwake(on) {
+  wantLock = on;
+  try {
+    if (on && !wakeLock && navigator.wakeLock && !document.hidden) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => (wakeLock = null)); }
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && wantLock) wantAwake(true); });
 
 // ---------------------------------------------------------------- rest timer
 
@@ -161,7 +227,7 @@ function guideHtml(ex) {
     <ol>${m.how.map((h) => `<li>${esc(h)}</li>`).join('')}</ol>
     <div class="twocol"><div><h4>Cues</h4><ul class="do">${m.cues.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>
       <div><h4>Avoid</h4><ul class="dont">${m.mistakes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div></div>
-    <div class="muted small">${m.muscles} · ${m.sets} × ${m.reps[0]}–${m.reps[1]}${m.unit === 'sec' ? ' sec' : ''}${m.side ? ' per side' : ''} · start around ${fmtLb(m.start)} lb</div>
+    <div class="muted small">${m.muscles} · ${m.sets} × ${m.reps[0]}–${m.reps[1]}${m.unit === 'sec' ? ' sec' : ''}${m.side ? ' per side' : ''} · ${m.bw ? 'body weight' : `start around ${fmtLb(m.start)} lb`}${m.alts ? ` · swaps: ${m.alts.map((a) => MOVES[a].name).join(', ')}` : ''}${m.harder ? ` · harder: ${MOVES[m.harder].name}` : ''}</div>
   </div>`;
 }
 function openGuide(ex) {
@@ -175,8 +241,13 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') $('sheet').hidden =
 
 function renderMoves() {
   $('moves').innerHTML = DAYS.map((d) => `<div class="movegroup"><h2>${d.name}<span>${d.focus}</span></h2>
-    ${d.moves.map((ex) => `<details class="card move"><summary><h3>${MOVES[ex].name}</h3><span class="tag">${MOVES[ex].sets} × ${MOVES[ex].reps[0]}–${MOVES[ex].reps[1]}${unit(MOVES[ex])}</span></summary>${guideHtml(ex)}</details>`).join('')}
-  </div>`).join('');
+    ${d.moves.map((ex) => moveCard(ex)).join('')}
+  </div>`).join('') + `<div class="movegroup"><h2>Alternatives<span>swap these in from Today</span></h2>${altIds().map((ex) => moveCard(ex)).join('')}</div>`;
+}
+const altIds = () => { const inProgram = new Set(DAYS.flatMap((d) => d.moves)); return Object.keys(MOVES).filter((k) => !inProgram.has(k)); };
+function moveCard(ex) {
+  const m = MOVES[ex];
+  return `<details class="card move"><summary><h3>${m.name}</h3><span class="tag">${m.sets} × ${m.reps[0]}–${m.reps[1]}${unit(m)}${m.bw ? ' · bw' : ''}</span></summary>${guideHtml(ex)}</details>`;
 }
 
 // ---------------------------------------------------------------- charts
@@ -231,22 +302,56 @@ function renderProgress() {
   const opt = (ex) => `<option value="${ex}" ${ex === progEx ? 'selected' : ''}>${MOVES[ex].name}${logged.includes(ex) ? '' : ' (not logged yet)'}</option>`;
   $('progress').innerHTML = `
     <div class="card">
-      <div class="pick"><h2 style="margin:0">Exercise</h2><select id="exsel">${DAYS.map((d) => `<optgroup label="${d.name}">${d.moves.map(opt).join('')}</optgroup>`).join('')}</select></div>
+      <div class="pick"><h2 style="margin:0">Exercise</h2><select id="exsel">${DAYS.map((d) => `<optgroup label="${d.name}">${d.moves.map(opt).join('')}</optgroup>`).join('')}<optgroup label="Alternatives">${altIds().map(opt).join('')}</optgroup></select></div>
       <canvas class="chart" id="exchart"></canvas>
       <div class="legend"><span><i style="background:#ffffff"></i>heaviest set (lb)</span><span><i style="background:#8b8b93"></i>estimated 1-rep max</span></div>
       ${sessions.length ? `<table class="log"><tr><th>date</th><th>sets</th><th>volume</th></tr>${sessions.slice().reverse().map((s) => `<tr><td>${fmtDate(s.at)}</td><td class="mono">${s.sets.map((z) => `${fmtLb(z.lbs)}×${z.reps}`).join('  ')}</td><td class="mono">${Math.round(s.sets.reduce((a, z) => a + z.lbs * z.reps, 0)).toLocaleString()}</td></tr>`).join('')}</table>` : ''}
     </div>
     <div class="grid2" style="margin-top:14px">
       <div class="card"><h2>Weekly volume <span class="muted small">lb × reps</span></h2><canvas class="chart" id="volchart" style="height:180px"></canvas></div>
-      <div class="card history"><h2>Recent workouts</h2>${workouts.slice(0, 8).map((w) => `<div class="w"><span><b>${DAY[w.day]?.name || w.day}</b> <span class="muted">· ${fmtDate(w.at)} · ${w.entries.reduce((a, e) => a + e.sets.length, 0)} sets</span></span><button class="ghost small" data-delw="${w.id}">delete</button></div>`).join('') || '<p class="muted">Nothing yet. Finish a workout on the Today tab.</p>'}</div>
+      <div class="card history"><h2>Recent workouts</h2>${workouts.slice(0, 8).map((w) => `<div class="w"><span><b>${DAY[w.day]?.name || w.day}</b> <span class="muted">· ${fmtDate(w.at)} · ${w.entries.reduce((a, e) => a + e.sets.length, 0)} sets</span></span><span><button class="ghost small" data-editw="${w.id}">edit</button><button class="ghost small" data-delw="${w.id}">delete</button></span></div>`).join('') || '<p class="muted">Nothing yet. Finish a workout on the Today tab.</p>'}</div>
     </div>`;
   $('exsel').onchange = (e) => { progEx = e.target.value; renderProgress(); };
   lineChart($('exchart'), [{ points: est, color: '#8b8b93', width: 1.5, dash: [4, 4] }, { points: top, color: '#ffffff', width: 2.5, dots: true }], { yUnit: '' });
   barChart($('volchart'), vol);
+  $('progress').querySelectorAll('[data-editw]').forEach((b) => (b.onclick = () => openEdit(workouts.find((w) => String(w.id) === b.dataset.editw))));
   $('progress').querySelectorAll('[data-delw]').forEach((b) => (b.onclick = async () => {
     if (!confirm('Delete this workout?')) return;
     try { await api('/workout/' + b.dataset.delw, { method: 'DELETE' }); workouts = workouts.filter((w) => String(w.id) !== b.dataset.delw); renderProgress(); } catch (e) { alert(e.message); }
   }));
+}
+
+function openEdit(w) {
+  if (!w) return;
+  const ed = JSON.parse(JSON.stringify(w)), s = $('sheet');
+  const iso = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const draw = () => {
+    s.innerHTML = `<div class="card editor"><div class="exhead"><h2>Edit ${DAY[ed.day]?.name || ed.day} workout</h2><button class="ghost" id="closesheet">close</button></div>
+      <label class="muted small">date <input type="date" id="edate" value="${iso(ed.at)}" max="${todayIso()}"></label>
+      ${ed.entries.map((e, ei) => `<div class="eentry"><b>${MOVES[e.ex]?.name || e.ex}</b>
+        ${e.sets.map((z, si) => `<div class="eset"><span class="muted small">${si + 1}</span>
+          ${MOVES[e.ex]?.bw ? '<span class="muted small">body weight</span>' : `<select data-e="${ei}" data-s="${si}" data-f="lbs">${W.map((x) => `<option value="${x}" ${x === z.lbs ? 'selected' : ''}>${fmtLb(x)} lb</option>`).join('')}</select>`}
+          <input type="number" min="1" max="999" value="${z.reps}" data-e="${ei}" data-s="${si}" data-f="reps"><span class="muted small">${MOVES[e.ex]?.unit === 'sec' ? 'sec' : 'reps'}</span>
+          <button class="ghost small" data-rm="${ei}:${si}" aria-label="remove set">✕</button></div>`).join('')}</div>`).join('')}
+      <textarea id="enote" placeholder="notes">${esc(ed.note)}</textarea>
+      <div class="row"><span class="muted small" id="eerr"></span><button class="primary" id="esave">Save changes</button></div></div>`;
+    s.hidden = false;
+    $('closesheet').onclick = () => (s.hidden = true);
+    s.querySelectorAll('[data-f]').forEach((el) => (el.onchange = () => { const z = ed.entries[+el.dataset.e].sets[+el.dataset.s]; z[el.dataset.f] = el.dataset.f === 'lbs' ? parseFloat(el.value) : Math.max(1, parseInt(el.value, 10) || 1); }));
+    s.querySelectorAll('[data-rm]').forEach((b) => (b.onclick = () => { const [ei, si] = b.dataset.rm.split(':').map(Number); ed.entries[ei].sets.splice(si, 1); ed.entries = ed.entries.filter((e) => e.sets.length); draw(); }));
+    $('enote').oninput = (e) => (ed.note = e.target.value);
+    $('edate').onchange = (e) => (ed.at = new Date(e.target.value + 'T12:00:00').getTime());
+    $('esave').onclick = async () => {
+      if (!ed.entries.length) { $('eerr').textContent = 'A workout needs at least one set. Delete it instead.'; return; }
+      const body = { day: ed.day, note: ed.note, at: ed.at, entries: ed.entries.map((e) => ({ ex: e.ex, sets: e.sets.map((z) => ({ lbs: Math.round(z.lbs * 10), reps: z.reps })) })) };
+      try {
+        const saved = fromApi(await api('/workout/' + w.id, { method: 'POST', body: JSON.stringify(body) }));
+        workouts = workouts.map((x) => (x.id === w.id ? saved : x)).sort((a, b) => b.at - a.at);
+        s.hidden = true; renderProgress();
+      } catch (e) { $('eerr').textContent = "Couldn't save: " + e.message; }
+    };
+  };
+  draw();
 }
 
 // ---------------------------------------------------------------- stats

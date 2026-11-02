@@ -136,3 +136,20 @@ table.log td.mono { font-family: var(--mono); }
   .setrow { grid-template-columns: 22px 1fr 1fr 42px; gap: 6px; }
   h1 { font-size: 24px; }
 }
+
+/* ---- swaps, back-dating, editor ---- */
+.stepper.bw { justify-content: center; padding: 8px 0; color: var(--muted); }
+.datewrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.datewrap input, .editor input, .editor select { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--ink); color-scheme: dark; }
+.swaps { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.swapopt { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; }
+.swapopt span { font-size: 12px; color: var(--muted); }
+.swapopt.on { border-color: var(--hi); }
+.exmeta button.ghost { padding: 0 4px; font-size: 13px; color: var(--good); }
+.editor { display: flex; flex-direction: column; gap: 12px; }
+.editor .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.editor textarea { width: 100%; min-height: 56px; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: 14px system-ui; }
+.eentry { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.eset { display: grid; grid-template-columns: 18px 1fr 72px 36px 32px; gap: 8px; align-items: center; }
+.eset input { width: 100%; }
+.history .w > span:last-child { display: inline-flex; gap: 2px; }

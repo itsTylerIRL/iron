@@ -2,6 +2,7 @@
 ::
 ::    GET    /state            workouts, bodyweights, settings
 ::    POST   /workout          {day, at?, note, entries: [{ex, sets: [{lbs, reps}]}]}
+::    POST   /workout/<id>     same body: replace that workout (edit / re-date)
 ::    DELETE /workout/<id>
 ::    POST   /weight           {lbs, at?}
 ::    DELETE /weight/<id>
@@ -93,6 +94,8 @@
       [%data ~]   [(give (ok 'text/javascript' (file /web/data/js))) state]
       [%style ~]  [(give (ok 'text/css' (file /web/style/css))) state]
       [%icon ~]   [(give (ok 'image/png' (file /web/icon/png))) state]
+      [%icon-512 ~]  [(give (ok 'image/png' (file /web/icon-512/png))) state]
+      [%manifest ~]  [(give (ok 'application/manifest+json' (as-octs:mimes:html (en:json:html manifest)))) state]
   ::
       [%api %state ~]
     [(give (json-response:gen:server state-json)) state]
@@ -109,9 +112,18 @@
     state(next +(next), workouts all)
   ::
       [%api %workout @ ~]
-    =/  id  (slaw %ud i.t.t.site)
-    ?.  &(?=(^ id) ?=(%'DELETE' method))  [(give [[400 ~] ~]) state]
-    [(give [[204 ~] ~]) state(workouts (skip workouts |=(w=workout =(id.w u.id))))]
+    =/  id  (rush i.t.t.site dem)
+    ?~  id  [(give [[400 ~] ~]) state]
+    ?:  ?=(%'DELETE' method)
+      [(give [[204 ~] ~]) state(workouts (skip workouts |=(w=workout =(id.w u.id))))]
+    ?.  ?=(%'POST' method)  [(give [[405 ~] ~]) state]
+    ?.  (lien workouts |=(w=workout =(id.w u.id)))  [(give not-found:gen:server) state]
+    =/  w  ?~(jon ~ (parse-workout u.jon))
+    ?~  w  [(give [[400 ~] ~]) state]
+    =/  upd=workout  u.w(id u.id)
+    =/  rest  (skip workouts |=(x=workout =(id.x u.id)))
+    =/  all  (sort [upd rest] |=([a=workout b=workout] (gth at.a at.b)))
+    [(give (json-response:gen:server (workout-json upd))) state(workouts all)]
   ::
       [%api %weight ~]
     ?.  ?=(%'POST' method)  [(give [[405 ~] ~]) state]
@@ -124,7 +136,7 @@
     state(next +(next), weights all)
   ::
       [%api %weight @ ~]
-    =/  id  (slaw %ud i.t.t.site)
+    =/  id  (rush i.t.t.site dem)
     ?.  &(?=(^ id) ?=(%'DELETE' method))  [(give [[400 ~] ~]) state]
     [(give [[204 ~] ~]) state(weights (skip weights |=(w=weigh =(id.w u.id))))]
   ::
@@ -143,6 +155,25 @@
   |=  =path
   ^-  octs
   (as-octs:mimes:html .^(@t %cx (weld /(scot %p our.bowl)/[q.byk.bowl]/(scot %da now.bowl) path)))
+::
+::  +manifest: lets phones add iron to the home screen as an app
+::
+++  manifest
+  ^-  json
+  =,  enjs:format
+  =/  icon
+    |=  [src=@t size=@t]
+    (pairs ~[src+s+src sizes+s+size type+s+'image/png' purpose+s+'any maskable'])
+  %-  pairs
+  :~  name+s+'Iron'
+      ['short_name' s+'Iron']
+      ['start_url' s+'/apps/iron']
+      scope+s+'/apps/iron'
+      display+s+'standalone'
+      ['background_color' s+'#0d0d0f']
+      ['theme_color' s+'#0d0d0f']
+      icons+a+~[(icon '/apps/iron/icon' '256x256') (icon '/apps/iron/icon-512' '512x512')]
+  ==
 ::
 ::  json in
 ::
