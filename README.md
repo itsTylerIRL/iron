@@ -77,7 +77,20 @@ Weights are per dumbbell. Volume is weight × reps on that basis.
 
 ## Install
 
-Iron isn't published from a ship yet, so you install it from this repo. You need a running ship and access to its pier folder on disk.
+From your ship's dojo:
+
+```
+|install ~nosfyl %iron
+```
+
+Or in Landscape: search for `~nosfyl` and click **Get App** on Iron.
+
+Open it from the tile, or go to `/apps/iron` on your ship. Updates arrive automatically. Your workouts are stored in the agent on your ship, so updates don't touch them.
+
+<details>
+<summary>Install from source instead</summary>
+
+You need a running ship and access to its pier folder on disk.
 
 **1. Create and mount an empty desk.** In your ship's dojo:
 
@@ -95,6 +108,8 @@ git clone https://github.com/itsTylerIRL/iron
 cp -r iron/desk/* <your-pier>/iron/
 ```
 
+If your ship runs in Docker (GroundSeg / Native Planet), copy into the container instead: `docker cp iron/desk/. <container>:/urbit/<ship>/iron/`.
+
 **3. Commit and install.** Back in the dojo:
 
 ```
@@ -102,20 +117,7 @@ cp -r iron/desk/* <your-pier>/iron/
 |install our %iron
 ```
 
-**4. Open it.** Click the Iron tile on your Landscape home screen, or go to `/apps/iron` on your ship.
-
-**To update later:** pull the repo, copy `desk/*` into `<your-pier>/iron/` again, and run `|commit %iron`. Your workouts are stored in the agent, so updating doesn't touch them.
-
-<details>
-<summary>Ship in Docker (GroundSeg / Native Planet)?</summary>
-
-The pier lives inside the container, so copy the files in with `docker cp`:
-
-```sh
-docker cp iron/desk/. <container>:/urbit/<ship>/iron/
-```
-
-Then run `|commit %iron` and `|install our %iron` from that ship's dojo.
+To update later, pull the repo, copy `desk/*` in again and run `|commit %iron`.
 </details>
 
 ## How it works
@@ -144,7 +146,7 @@ All routes need you to be logged in to your ship.
 
 ## Development
 
-On a fake ship or comet, after steps 1–3 above, `./dev.sh <pier-dir> <tmux-session>` copies `desk/` in and commits it.
+On a fake ship or comet, after the from-source steps above, `./dev.sh <pier-dir> <tmux-session>` copies `desk/` in and commits it.
 
 ## License
 
